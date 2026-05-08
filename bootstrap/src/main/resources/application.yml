@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: alt
+  profiles:
+    active: local
+  autoconfigure:
+    exclude:
+      # 골격 단계: DB/Redis 미구성 상태에서도 부팅 가능. 어댑터 구현 시 단계적으로 제거.
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.ryuqqq.alt: DEBUG
