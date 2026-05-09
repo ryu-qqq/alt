@@ -33,6 +33,10 @@ subprojects {
     dependencies {
         "testImplementation"("org.springframework.boot:spring-boot-starter-test")
         "testImplementation"("org.assertj:assertj-core")
+        // Gradle 8.14 내장 junit-platform-launcher 와 Spring Boot 3.5 의 junit-platform-engine
+        // 버전이 어긋나면 OutputDirectoryProvider 에러가 발생한다. Spring Boot BOM 이 관리하는
+        // junit-platform-launcher 를 명시적으로 추가하여 정합성을 맞춘다.
+        "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
     }
 
     tasks.withType<Test> {

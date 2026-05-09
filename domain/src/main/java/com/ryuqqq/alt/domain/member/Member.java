@@ -80,7 +80,7 @@ public final class Member {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Member other)) return false;
-        return id != null && id.equals(other.id);
+        return id != null && !id.isNew() && id.equals(other.id);
     }
 
     @Override

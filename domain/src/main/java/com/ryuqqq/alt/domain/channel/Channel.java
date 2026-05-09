@@ -62,7 +62,7 @@ public final class Channel {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Channel other)) return false;
-        return id != null && id.equals(other.id);
+        return id != null && !id.isNew() && id.equals(other.id);
     }
 
     @Override
