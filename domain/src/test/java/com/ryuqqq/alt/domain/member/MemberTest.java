@@ -1,6 +1,7 @@
 package com.ryuqqq.alt.domain.member;
 
-import com.ryuqqq.alt.domain.error.InvalidTransitionException;
+import com.ryuqqq.alt.domain.error.InvalidSubscribeTransitionException;
+import com.ryuqqq.alt.domain.error.InvalidUnsubscribeTransitionException;
 import com.ryuqqq.alt.domain.error.SubscriptionErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -65,12 +66,12 @@ class MemberTest {
         }
 
         @Test
-        @DisplayName("PREMIUM 상태에서 구독은 불가")
+        @DisplayName("PREMIUM 상태에서 구독은 InvalidSubscribeTransitionException")
         void premiumCannotSubscribe() {
             Member member = Member.forNew(PHONE, SubscriptionStatus.PREMIUM);
             assertThatThrownBy(() -> member.applySubscribe(SubscriptionStatus.PREMIUM))
-                .isInstanceOf(InvalidTransitionException.class)
-                .satisfies(e -> assertThat(((InvalidTransitionException) e).errorCode())
+                .isInstanceOf(InvalidSubscribeTransitionException.class)
+                .satisfies(e -> assertThat(((InvalidSubscribeTransitionException) e).errorCode())
                     .isEqualTo(SubscriptionErrorCode.INVALID_SUBSCRIBE_TRANSITION));
         }
 
@@ -79,7 +80,7 @@ class MemberTest {
         void sameGradeRejected() {
             Member member = Member.forNew(PHONE, SubscriptionStatus.BASIC);
             assertThatThrownBy(() -> member.applySubscribe(SubscriptionStatus.BASIC))
-                .isInstanceOf(InvalidTransitionException.class);
+                .isInstanceOf(InvalidSubscribeTransitionException.class);
         }
     }
 
@@ -104,12 +105,12 @@ class MemberTest {
         }
 
         @Test
-        @DisplayName("NONE 상태에서 해지는 불가")
+        @DisplayName("NONE 상태에서 해지는 InvalidUnsubscribeTransitionException")
         void noneCannotUnsubscribe() {
             Member member = Member.forNew(PHONE, SubscriptionStatus.NONE);
             assertThatThrownBy(() -> member.applyUnsubscribe(SubscriptionStatus.NONE))
-                .isInstanceOf(InvalidTransitionException.class)
-                .satisfies(e -> assertThat(((InvalidTransitionException) e).errorCode())
+                .isInstanceOf(InvalidUnsubscribeTransitionException.class)
+                .satisfies(e -> assertThat(((InvalidUnsubscribeTransitionException) e).errorCode())
                     .isEqualTo(SubscriptionErrorCode.INVALID_UNSUBSCRIBE_TRANSITION));
         }
     }

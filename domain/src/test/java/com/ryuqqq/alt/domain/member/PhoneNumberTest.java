@@ -1,5 +1,6 @@
 package com.ryuqqq.alt.domain.member;
 
+import com.ryuqqq.alt.domain.error.InvalidPhoneNumberException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class PhoneNumberTest {
         @DisplayName("null 입력 거부")
         void rejectsNull() {
             assertThatThrownBy(() -> PhoneNumber.of(null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(InvalidPhoneNumberException.class);
         }
 
         @ParameterizedTest
@@ -54,7 +55,7 @@ class PhoneNumberTest {
         @DisplayName("형식 위반 거부")
         void rejectsInvalidFormat(String raw) {
             assertThatThrownBy(() -> PhoneNumber.of(raw))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(InvalidPhoneNumberException.class);
         }
     }
 }

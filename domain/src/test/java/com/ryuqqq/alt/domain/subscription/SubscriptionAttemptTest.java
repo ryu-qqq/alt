@@ -1,7 +1,7 @@
 package com.ryuqqq.alt.domain.subscription;
 
 import com.ryuqqq.alt.domain.channel.ChannelId;
-import com.ryuqqq.alt.domain.error.InvalidTransitionException;
+import com.ryuqqq.alt.domain.error.AttemptNotPendingException;
 import com.ryuqqq.alt.domain.error.SubscriptionErrorCode;
 import com.ryuqqq.alt.domain.member.MemberId;
 import com.ryuqqq.alt.domain.member.SubscriptionStatus;
@@ -21,12 +21,13 @@ class SubscriptionAttemptTest {
     private static final ChannelId CHANNEL = ChannelId.of(10L);
     private static final Instant REQUESTED_AT = Instant.parse("2026-05-09T00:00:00Z");
     private static final Instant COMPLETED_AT = Instant.parse("2026-05-09T00:00:01Z");
+    private static final String IDEMPOTENCY_KEY = "test-key-123";
 
     private SubscriptionAttempt newSubscribeAttempt() {
         return SubscriptionAttempt.forNew(
             MEMBER, CHANNEL, AttemptKind.SUBSCRIBE,
             SubscriptionStatus.NONE, SubscriptionStatus.PREMIUM,
-            REQUESTED_AT
+            REQUESTED_AT, IDEMPOTENCY_KEY
         );
     }
 
@@ -35,14 +36,27 @@ class SubscriptionAttemptTest {
     class Creation {
 
         @Test
-        @DisplayName("forNew는 PENDING 상태로 시작, terminal=false")
+        @DisplayName("forNew는 PENDING 상태로 시작, terminal=false, idempotencyKey 보존")
         void startsAsPending() {
             SubscriptionAttempt attempt = newSubscribeAttempt();
             assertThat(attempt.status()).isEqualTo(AttemptStatus.PENDING);
             assertThat(attempt.isTerminal()).isFalse();
+            assertThat(attempt.isCommitted()).isFalse();
             assertThat(attempt.failureReason()).isNull();
             assertThat(attempt.completedAt()).isNull();
             assertThat(attempt.id().isNew()).isTrue();
+            assertThat(attempt.idempotencyKey()).isEqualTo(IDEMPOTENCY_KEY);
+        }
+
+        @Test
+        @DisplayName("idempotencyKey 없이도 forNew 가능 (선택적)")
+        void idempotencyKeyOptional() {
+            SubscriptionAttempt attempt = SubscriptionAttempt.forNew(
+                MEMBER, CHANNEL, AttemptKind.SUBSCRIBE,
+                SubscriptionStatus.NONE, SubscriptionStatus.PREMIUM,
+                REQUESTED_AT, null
+            );
+            assertThat(attempt.idempotencyKey()).isNull();
         }
 
         @Test
@@ -51,10 +65,12 @@ class SubscriptionAttemptTest {
             SubscriptionAttempt attempt = SubscriptionAttempt.reconstitute(
                 AttemptId.of(99L), MEMBER, CHANNEL, AttemptKind.SUBSCRIBE,
                 SubscriptionStatus.NONE, SubscriptionStatus.PREMIUM,
-                REQUESTED_AT, AttemptStatus.COMMITTED, null, COMPLETED_AT
+                REQUESTED_AT, IDEMPOTENCY_KEY,
+                AttemptStatus.COMMITTED, null, COMPLETED_AT
             );
             assertThat(attempt.status()).isEqualTo(AttemptStatus.COMMITTED);
             assertThat(attempt.isTerminal()).isTrue();
+            assertThat(attempt.isCommitted()).isTrue();
         }
     }
 
@@ -101,35 +117,35 @@ class SubscriptionAttemptTest {
     class TerminalInvariant {
 
         @Test
-        @DisplayName("COMMITTED 후 다시 commit 시도하면 ATTEMPT_NOT_PENDING")
+        @DisplayName("COMMITTED 후 다시 commit 시도하면 AttemptNotPendingException")
         void doubleCommit() {
             SubscriptionAttempt attempt = newSubscribeAttempt();
             attempt.commit(COMPLETED_AT);
 
             assertThatThrownBy(() -> attempt.commit(COMPLETED_AT))
-                .isInstanceOf(InvalidTransitionException.class)
-                .satisfies(e -> assertThat(((InvalidTransitionException) e).errorCode())
+                .isInstanceOf(AttemptNotPendingException.class)
+                .satisfies(e -> assertThat(((AttemptNotPendingException) e).errorCode())
                     .isEqualTo(SubscriptionErrorCode.ATTEMPT_NOT_PENDING));
         }
 
         @Test
-        @DisplayName("ROLLED_BACK 후 fail 시도하면 ATTEMPT_NOT_PENDING")
+        @DisplayName("ROLLED_BACK 후 fail 시도하면 AttemptNotPendingException")
         void rolledBackThenFail() {
             SubscriptionAttempt attempt = newSubscribeAttempt();
             attempt.rollback(COMPLETED_AT);
 
             assertThatThrownBy(() -> attempt.fail(AttemptFailureReason.CSRNG_UNAVAILABLE, COMPLETED_AT))
-                .isInstanceOf(InvalidTransitionException.class);
+                .isInstanceOf(AttemptNotPendingException.class);
         }
 
         @Test
-        @DisplayName("FAILED 후 commit 시도하면 ATTEMPT_NOT_PENDING")
+        @DisplayName("FAILED 후 commit 시도하면 AttemptNotPendingException")
         void failedThenCommit() {
             SubscriptionAttempt attempt = newSubscribeAttempt();
             attempt.fail(AttemptFailureReason.CSRNG_UNAVAILABLE, COMPLETED_AT);
 
             assertThatThrownBy(() -> attempt.commit(COMPLETED_AT))
-                .isInstanceOf(InvalidTransitionException.class);
+                .isInstanceOf(AttemptNotPendingException.class);
         }
     }
 }

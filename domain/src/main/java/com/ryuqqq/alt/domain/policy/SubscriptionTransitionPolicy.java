@@ -1,9 +1,10 @@
 package com.ryuqqq.alt.domain.policy;
 
 import com.ryuqqq.alt.domain.channel.Channel;
-import com.ryuqqq.alt.domain.error.ChannelNotAllowedException;
-import com.ryuqqq.alt.domain.error.InvalidTransitionException;
-import com.ryuqqq.alt.domain.error.SubscriptionErrorCode;
+import com.ryuqqq.alt.domain.error.ChannelSubscribeNotAllowedException;
+import com.ryuqqq.alt.domain.error.ChannelUnsubscribeNotAllowedException;
+import com.ryuqqq.alt.domain.error.InvalidSubscribeTransitionException;
+import com.ryuqqq.alt.domain.error.InvalidUnsubscribeTransitionException;
 import com.ryuqqq.alt.domain.member.Member;
 import com.ryuqqq.alt.domain.member.SubscriptionStatus;
 
@@ -17,26 +18,22 @@ public final class SubscriptionTransitionPolicy {
 
     public static void verifySubscribe(Member member, Channel channel, SubscriptionStatus target) {
         if (!channel.canSubscribe()) {
-            throw new ChannelNotAllowedException(
-                SubscriptionErrorCode.CHANNEL_SUBSCRIBE_NOT_ALLOWED,
+            throw new ChannelSubscribeNotAllowedException(
                 "channelId=" + channel.idValue() + " type=" + channel.typeDisplayName());
         }
         if (!member.canSubscribeTo(target)) {
-            throw new InvalidTransitionException(
-                SubscriptionErrorCode.INVALID_SUBSCRIBE_TRANSITION,
+            throw new InvalidSubscribeTransitionException(
                 member.statusDisplayName() + " -> " + target.displayName());
         }
     }
 
     public static void verifyUnsubscribe(Member member, Channel channel, SubscriptionStatus target) {
         if (!channel.canUnsubscribe()) {
-            throw new ChannelNotAllowedException(
-                SubscriptionErrorCode.CHANNEL_UNSUBSCRIBE_NOT_ALLOWED,
+            throw new ChannelUnsubscribeNotAllowedException(
                 "channelId=" + channel.idValue() + " type=" + channel.typeDisplayName());
         }
         if (!member.canUnsubscribeTo(target)) {
-            throw new InvalidTransitionException(
-                SubscriptionErrorCode.INVALID_UNSUBSCRIBE_TRANSITION,
+            throw new InvalidUnsubscribeTransitionException(
                 member.statusDisplayName() + " -> " + target.displayName());
         }
     }

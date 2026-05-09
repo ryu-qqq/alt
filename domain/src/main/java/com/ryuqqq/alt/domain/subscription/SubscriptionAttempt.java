@@ -1,8 +1,7 @@
 package com.ryuqqq.alt.domain.subscription;
 
 import com.ryuqqq.alt.domain.channel.ChannelId;
-import com.ryuqqq.alt.domain.error.InvalidTransitionException;
-import com.ryuqqq.alt.domain.error.SubscriptionErrorCode;
+import com.ryuqqq.alt.domain.error.AttemptNotPendingException;
 import com.ryuqqq.alt.domain.member.MemberId;
 import com.ryuqqq.alt.domain.member.SubscriptionStatus;
 
@@ -18,6 +17,10 @@ import java.util.Objects;
  * - 정적 팩토리 forNew / reconstitute (DOM-AGG-001)
  * - 상태 변경은 비즈니스 메서드 commit / rollback / fail (DOM-AGG-004)
  * - equals/hashCode는 ID 기반 (DOM-AGG-010)
+ *
+ * idempotencyKey:
+ * - 클라이언트 재시도와 외부 API Retry 의 중복 처리 방지를 위한 멱등성 키 (ADR-0004).
+ * - nullable. 어댑터(persistence-mysql) 에서 UNIQUE 인덱스로 강제.
  */
 public final class SubscriptionAttempt {
 
@@ -28,6 +31,7 @@ public final class SubscriptionAttempt {
     private final SubscriptionStatus fromStatus;
     private final SubscriptionStatus toStatus;
     private final Instant requestedAt;
+    private final String idempotencyKey;
 
     private AttemptStatus status;
     private AttemptFailureReason failureReason;
@@ -41,6 +45,7 @@ public final class SubscriptionAttempt {
         SubscriptionStatus fromStatus,
         SubscriptionStatus toStatus,
         Instant requestedAt,
+        String idempotencyKey,
         AttemptStatus status,
         AttemptFailureReason failureReason,
         Instant completedAt
@@ -52,6 +57,7 @@ public final class SubscriptionAttempt {
         this.fromStatus = fromStatus;
         this.toStatus = toStatus;
         this.requestedAt = requestedAt;
+        this.idempotencyKey = idempotencyKey;
         this.status = status;
         this.failureReason = failureReason;
         this.completedAt = completedAt;
@@ -63,11 +69,12 @@ public final class SubscriptionAttempt {
         AttemptKind kind,
         SubscriptionStatus fromStatus,
         SubscriptionStatus toStatus,
-        Instant requestedAt
+        Instant requestedAt,
+        String idempotencyKey
     ) {
         return new SubscriptionAttempt(
             AttemptId.forNew(), memberId, channelId, kind, fromStatus, toStatus,
-            requestedAt, AttemptStatus.PENDING, null, null
+            requestedAt, idempotencyKey, AttemptStatus.PENDING, null, null
         );
     }
 
@@ -79,13 +86,14 @@ public final class SubscriptionAttempt {
         SubscriptionStatus fromStatus,
         SubscriptionStatus toStatus,
         Instant requestedAt,
+        String idempotencyKey,
         AttemptStatus status,
         AttemptFailureReason failureReason,
         Instant completedAt
     ) {
         return new SubscriptionAttempt(
             id, memberId, channelId, kind, fromStatus, toStatus,
-            requestedAt, status, failureReason, completedAt
+            requestedAt, idempotencyKey, status, failureReason, completedAt
         );
     }
 
@@ -113,11 +121,13 @@ public final class SubscriptionAttempt {
         return status.isTerminal();
     }
 
+    public boolean isCommitted() {
+        return status == AttemptStatus.COMMITTED;
+    }
+
     private void ensurePending() {
         if (status != AttemptStatus.PENDING) {
-            throw new InvalidTransitionException(
-                SubscriptionErrorCode.ATTEMPT_NOT_PENDING,
-                "current=" + status);
+            throw new AttemptNotPendingException("current=" + status);
         }
     }
 
@@ -128,6 +138,7 @@ public final class SubscriptionAttempt {
     public SubscriptionStatus fromStatus() { return fromStatus; }
     public SubscriptionStatus toStatus() { return toStatus; }
     public Instant requestedAt() { return requestedAt; }
+    public String idempotencyKey() { return idempotencyKey; }
     public AttemptStatus status() { return status; }
     public AttemptFailureReason failureReason() { return failureReason; }
     public Instant completedAt() { return completedAt; }

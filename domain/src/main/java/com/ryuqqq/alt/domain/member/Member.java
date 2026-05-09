@@ -1,7 +1,7 @@
 package com.ryuqqq.alt.domain.member;
 
-import com.ryuqqq.alt.domain.error.InvalidTransitionException;
-import com.ryuqqq.alt.domain.error.SubscriptionErrorCode;
+import com.ryuqqq.alt.domain.error.InvalidSubscribeTransitionException;
+import com.ryuqqq.alt.domain.error.InvalidUnsubscribeTransitionException;
 
 import java.util.Objects;
 
@@ -44,18 +44,14 @@ public final class Member {
 
     public void applySubscribe(SubscriptionStatus target) {
         if (!status.canSubscribeTo(target)) {
-            throw new InvalidTransitionException(
-                SubscriptionErrorCode.INVALID_SUBSCRIBE_TRANSITION,
-                status + " -> " + target);
+            throw new InvalidSubscribeTransitionException(status + " -> " + target);
         }
         this.status = target;
     }
 
     public void applyUnsubscribe(SubscriptionStatus target) {
         if (!status.canUnsubscribeTo(target)) {
-            throw new InvalidTransitionException(
-                SubscriptionErrorCode.INVALID_UNSUBSCRIBE_TRANSITION,
-                status + " -> " + target);
+            throw new InvalidUnsubscribeTransitionException(status + " -> " + target);
         }
         this.status = target;
     }
