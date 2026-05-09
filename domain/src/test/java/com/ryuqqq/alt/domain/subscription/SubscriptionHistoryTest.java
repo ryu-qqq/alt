@@ -8,10 +8,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("SubscriptionHistory 컬렉션 VO")
 class SubscriptionHistoryTest {
@@ -19,20 +20,12 @@ class SubscriptionHistoryTest {
     private static final MemberId MEMBER = MemberId.of(1L);
     private static final ChannelId CHANNEL = ChannelId.of(10L);
 
-    private SubscriptionAttempt committed(SubscriptionStatus from, SubscriptionStatus to, Instant requestedAt, AttemptKind kind) {
-        SubscriptionAttempt a = SubscriptionAttempt.forNew(
-            MEMBER, CHANNEL, kind, from, to, requestedAt, null
+    private SubscriptionAttempt anyAttempt(Instant requestedAt) {
+        return SubscriptionAttempt.forNew(
+            MEMBER, CHANNEL, AttemptKind.SUBSCRIBE,
+            SubscriptionStatus.NONE, SubscriptionStatus.PREMIUM,
+            requestedAt, null
         );
-        a.commit(requestedAt.plusSeconds(1));
-        return a;
-    }
-
-    private SubscriptionAttempt rolledBack(SubscriptionStatus from, SubscriptionStatus to, Instant requestedAt) {
-        SubscriptionAttempt a = SubscriptionAttempt.forNew(
-            MEMBER, CHANNEL, AttemptKind.SUBSCRIBE, from, to, requestedAt, null
-        );
-        a.rollback(requestedAt.plusSeconds(1));
-        return a;
     }
 
     @Nested
@@ -40,130 +33,60 @@ class SubscriptionHistoryTest {
     class Creation {
 
         @Test
-        @DisplayName("empty: 빈 이력의 currentStatus는 NONE")
-        void emptyStartsAtNone() {
+        @DisplayName("empty: 빈 이력")
+        void emptyHistory() {
             SubscriptionHistory history = SubscriptionHistory.empty(MEMBER);
 
             assertThat(history.isEmpty()).isTrue();
             assertThat(history.size()).isZero();
-            assertThat(history.currentStatus()).isEqualTo(SubscriptionStatus.NONE);
-            assertThat(history.latestCommittedChange()).isEmpty();
+            assertThat(history.attempts()).isEmpty();
+            assertThat(history.memberId()).isEqualTo(MEMBER);
         }
 
         @Test
-        @DisplayName("입력된 attempts는 requestedAt 오름차순으로 정렬되어 보관")
-        void sortsByRequestedAt() {
+        @DisplayName("of: 입력 순서를 그대로 보존 (정렬은 영속 어댑터가 담당)")
+        void preservesInsertionOrder() {
+            Instant t3 = Instant.parse("2026-03-01T00:00:00Z");
             Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
             Instant t2 = Instant.parse("2026-02-01T00:00:00Z");
-            Instant t3 = Instant.parse("2026-03-01T00:00:00Z");
 
-            SubscriptionAttempt a1 = committed(SubscriptionStatus.NONE, SubscriptionStatus.BASIC, t1, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt a3 = committed(SubscriptionStatus.PREMIUM, SubscriptionStatus.BASIC, t3, AttemptKind.UNSUBSCRIBE);
-            SubscriptionAttempt a2 = committed(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t2, AttemptKind.SUBSCRIBE);
+            SubscriptionAttempt a3 = anyAttempt(t3);
+            SubscriptionAttempt a1 = anyAttempt(t1);
+            SubscriptionAttempt a2 = anyAttempt(t2);
 
-            // 일부러 뒤섞어 입력
             SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(a3, a1, a2));
 
-            assertThat(history.attempts()).containsExactly(a1, a2, a3);
+            assertThat(history.attempts()).containsExactly(a3, a1, a2);
+            assertThat(history.size()).isEqualTo(3);
         }
     }
 
     @Nested
-    @DisplayName("T-4. 도메인 로직 — 현재 상태 derive")
-    class CurrentStatus {
+    @DisplayName("T-3. 불변식")
+    class Invariants {
 
         @Test
-        @DisplayName("최신 COMMITTED의 toStatus가 currentStatus")
-        void latestCommittedDecidesCurrent() {
-            Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
-            Instant t2 = Instant.parse("2026-02-01T00:00:00Z");
+        @DisplayName("외부에서 입력 리스트를 변경해도 VO 내부는 영향 없음 (defensive copy)")
+        void defensivelyCopied() {
+            List<SubscriptionAttempt> mutable = new ArrayList<>();
+            mutable.add(anyAttempt(Instant.parse("2026-01-01T00:00:00Z")));
 
-            SubscriptionAttempt a1 = committed(SubscriptionStatus.NONE, SubscriptionStatus.BASIC, t1, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt a2 = committed(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t2, AttemptKind.SUBSCRIBE);
+            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, mutable);
 
-            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(a1, a2));
+            mutable.clear();
 
-            assertThat(history.currentStatus()).isEqualTo(SubscriptionStatus.PREMIUM);
+            assertThat(history.size()).isEqualTo(1);
         }
 
         @Test
-        @DisplayName("ROLLED_BACK / FAILED는 현재 상태 산출에서 제외")
-        void nonCommittedExcluded() {
-            Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
-            Instant t2 = Instant.parse("2026-02-01T00:00:00Z");
-            Instant t3 = Instant.parse("2026-03-01T00:00:00Z");
+        @DisplayName("attempts() 가 반환한 리스트는 수정 불가")
+        void returnedListImmutable() {
+            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(
+                anyAttempt(Instant.parse("2026-01-01T00:00:00Z"))
+            ));
 
-            SubscriptionAttempt commit1 = committed(SubscriptionStatus.NONE, SubscriptionStatus.BASIC, t1, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt rollback = rolledBack(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t2);
-            SubscriptionAttempt failed = SubscriptionAttempt.forNew(
-                MEMBER, CHANNEL, AttemptKind.SUBSCRIBE,
-                SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t3, null
-            );
-            failed.fail(AttemptFailureReason.CSRNG_UNAVAILABLE, t3.plusSeconds(1));
-
-            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(commit1, rollback, failed));
-
-            assertThat(history.currentStatus()).isEqualTo(SubscriptionStatus.BASIC); // last COMMITTED
-            assertThat(history.committedChanges()).containsExactly(commit1);
-        }
-    }
-
-    @Nested
-    @DisplayName("T-4. 사용자 노출용 — committedChanges / latestCommittedChange")
-    class UserFacing {
-
-        @Test
-        @DisplayName("committedChanges는 COMMITTED만, 시간 오름차순")
-        void committedChangesOnly() {
-            Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
-            Instant t2 = Instant.parse("2026-02-01T00:00:00Z");
-            Instant t3 = Instant.parse("2026-03-01T00:00:00Z");
-
-            SubscriptionAttempt c1 = committed(SubscriptionStatus.NONE, SubscriptionStatus.BASIC, t1, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt rb = rolledBack(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t2);
-            SubscriptionAttempt c3 = committed(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t3, AttemptKind.SUBSCRIBE);
-
-            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(c1, rb, c3));
-
-            assertThat(history.committedChanges()).containsExactly(c1, c3);
-        }
-
-        @Test
-        @DisplayName("latestCommittedChange는 가장 최근 커밋")
-        void latestCommitted() {
-            Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
-            Instant t2 = Instant.parse("2026-02-01T00:00:00Z");
-
-            SubscriptionAttempt c1 = committed(SubscriptionStatus.NONE, SubscriptionStatus.BASIC, t1, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt c2 = committed(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t2, AttemptKind.SUBSCRIBE);
-
-            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(c1, c2));
-
-            Optional<SubscriptionAttempt> latest = history.latestCommittedChange();
-            assertThat(latest).contains(c2);
-        }
-    }
-
-    @Nested
-    @DisplayName("T-4. since — 시간 슬라이스")
-    class Slicing {
-
-        @Test
-        @DisplayName("since는 from 시점 이후만 포함")
-        void sliceSince() {
-            Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
-            Instant t2 = Instant.parse("2026-02-01T00:00:00Z");
-            Instant t3 = Instant.parse("2026-03-01T00:00:00Z");
-
-            SubscriptionAttempt a1 = committed(SubscriptionStatus.NONE, SubscriptionStatus.BASIC, t1, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt a2 = committed(SubscriptionStatus.BASIC, SubscriptionStatus.PREMIUM, t2, AttemptKind.SUBSCRIBE);
-            SubscriptionAttempt a3 = committed(SubscriptionStatus.PREMIUM, SubscriptionStatus.BASIC, t3, AttemptKind.UNSUBSCRIBE);
-
-            SubscriptionHistory history = SubscriptionHistory.of(MEMBER, List.of(a1, a2, a3));
-
-            SubscriptionHistory sliced = history.since(t2);
-
-            assertThat(sliced.attempts()).containsExactly(a2, a3);
+            assertThatThrownBy(() -> history.attempts().clear())
+                .isInstanceOf(UnsupportedOperationException.class);
         }
     }
 }
