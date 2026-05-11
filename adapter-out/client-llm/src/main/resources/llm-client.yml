@@ -1,0 +1,8 @@
+llm-client:
+  base-url: https://api.openai.com/v1
+  api-key: ${OPENAI_API_KEY:}
+  model: gpt-4o-mini
+  max-tokens: 500
+  temperature: 0.3
+  connect-timeout: 3s
+  read-timeout: 15s

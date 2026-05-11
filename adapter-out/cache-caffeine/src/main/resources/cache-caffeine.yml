@@ -1,0 +1,14 @@
+# ============================================================
+# Cache Caffeine Layer — 단일 인스턴스용 로컬 캐시 설정
+# ============================================================
+# CaffeineProperties 가 cache-caffeine.* prefix 로 바인딩.
+# 분산 환경 전환 시 Redis SETNX 어댑터로 교체.
+# ============================================================
+
+cache-caffeine:
+  idempotency:
+    # 멱등 키 1차 단락 캐시 (ADR-0004 L1)
+    # TTL 5분 ± 1분 jitter — 동시 만료 stampede 방어
+    ttl: 5m
+    jitter: 1m
+    max-size: 200000

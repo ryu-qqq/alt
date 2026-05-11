@@ -1,0 +1,78 @@
+# ============================================================
+# Persistence MySQL Layer — Hexagonal adapter-out:persistence-mysql
+# ============================================================
+# 환경별 url/credentials 는 application-{profile}.yml 에서 override.
+# - HikariCP: connection pool sizing + 안정성 옵션
+# - JPA/Hibernate: 배치/쿼리 최적화
+# - Flyway: 자동 마이그레이션
+# ============================================================
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    hikari:
+      pool-name: alt-hikari
+
+      # Connection sizing
+      # - Little's Law 기반 + 안전계수. 단일 인스턴스 기준 동시처리량 ≈ pool size.
+      # - min = max — startup spike 시 신규 connection 생성 latency 회피
+      maximum-pool-size: 10
+      minimum-idle: 10
+
+      # Timeout (단위 ms)
+      connection-timeout: 3000          # 풀에서 connection 얻기 까지 대기 상한
+      validation-timeout: 1000          # connection isValid 확인 상한
+      idle-timeout: 0                   # min=max 이므로 무의미
+      max-lifetime: 1800000             # 30분 — MySQL wait_timeout(기본 8h) 안쪽
+      keepalive-time: 300000            # 5분 — idle 잠재 끊김 예방
+      leak-detection-threshold: 5000    # 5초 — connection 누수 감지
+
+      # auto-commit 은 HikariCP 기본값(true) 사용.
+      # 명시적 false 는 JPA @Transactional 의미를 강조하지만, JdbcTemplate 으로 직접 SQL 을
+      # 실행하는 경로(예: 테스트 fixture)에서 commit 누락 위험이 있어 채택하지 않는다.
+
+      # MySQL Driver tuning (성능)
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+        useLocalSessionState: true
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
+        cacheServerConfiguration: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
+
+  jpa:
+    open-in-view: false                 # OSIV 비활성 — View 단까지 DB connection 보유 금지
+
+    hibernate:
+      ddl-auto: validate                # 스키마는 Flyway 가 단일 소스. 검증만 수행
+
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+        # 배치/페치 사이즈
+        jdbc:
+          batch_size: 50
+          fetch_size: 50
+
+        order_inserts: true             # PK 별 INSERT 정렬 → JDBC 배치 효율 ↑
+        order_updates: true             # PK 별 UPDATE 정렬
+        batch_versioned_data: true      # @Version 엔티티도 배치 처리
+
+        # 쿼리 plan 캐시
+        query:
+          plan_cache_max_size: 2048
+          in_clause_parameter_padding: true   # IN (?, ?, ?) 패딩 → plan cache hit ↑
+
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false          # 운영 환경 hot-fix 마이그레이션 충돌 회피

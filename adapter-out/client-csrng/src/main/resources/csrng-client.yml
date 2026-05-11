@@ -1,0 +1,4 @@
+csrng-client:
+  base-url: https://csrng.net/csrng/csrng.php
+  connect-timeout: 2s
+  read-timeout: 2s

@@ -1,0 +1,32 @@
+spring:
+  # datasource url/username/password 는 AbstractPersistenceIntegrationTest 의
+  # @DynamicPropertySource 가 Testcontainers MySQL 컨테이너에서 주입한다.
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 20000
+      pool-name: alt-test-hikari
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway 가 스키마를 만든 뒤 Hibernate 는 검증만 수행
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    org.hibernate.SQL: warn
+    org.testcontainers: info
+    com.zaxxer.hikari: warn
