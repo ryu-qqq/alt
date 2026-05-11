@@ -29,6 +29,9 @@ bin/
 # VS Code
 .vscode/
 
+# Claude Code (로컬 에이전트/스킬/설정 — 평가/배포와 무관)
+.claude/
+
 # macOS
 .DS_Store
 
