@@ -4,15 +4,20 @@ import com.ryuqqq.alt.application.subscription.port.out.MemberCommandPort;
 import com.ryuqqq.alt.application.subscription.port.out.SubscriptionAttemptCommandPort;
 import com.ryuqqq.alt.domain.member.Member;
 import com.ryuqqq.alt.domain.subscription.SubscriptionAttempt;
+import com.ryuqqq.alt.domain.subscription.AttemptId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 사가 흐름에서 Member + SubscriptionAttempt 를 한 트랜잭션으로 원자적 저장.
+ * 구독 사가의 영속화 묶음.
  *
- * 두 메서드는 명세상 의도가 다르다:
- * - saveNewAttempt(...) : PENDING 시도 진입 — 외부 API 호출 직전. Member 가 신규일 수 있다.
- * - applyResult(...)   : csrng 결과 적용 — 외부 API 호출 직후. Member 상태가 변할 수 있다.
+ * 두 메서드의 의도 차이:
+ * - saveWithMemberUpdate: APPROVED 케이스. member 상태 변경 + attempt 동시 영속 (원자적)
+ * - saveAttempt        : REJECTED / FAILED 케이스. member 변경 없으므로 attempt 만 영속
+ *
+ * 반환값:
+ * - persist 후 DB 가 채번한 attemptId 를 도메인 객체에 반영한 새 SubscriptionAttempt 를 반환한다.
+ *   호출자(Coordinator) 는 이 반환값으로 finalBundle 을 재구성해 응답 DTO 에 attemptId 를 노출한다.
  */
 @Component
 public class SubscriptionPersistenceFacade {
@@ -28,29 +33,16 @@ public class SubscriptionPersistenceFacade {
         this.subscriptionAttemptCommandPort = subscriptionAttemptCommandPort;
     }
 
-    /**
-     * Member 와 PENDING SubscriptionAttempt 를 같은 트랜잭션으로 저장.
-     * - Member 는 신규(isNew)면 INSERT, 아니면 그대로 패스 (현재 상태 변경 없음).
-     * - Attempt 는 항상 신규.
-     */
     @Transactional
-    public PersistedAttempt saveNewAttempt(Member member, SubscriptionAttempt attempt) {
-        Long memberId = memberCommandPort.persist(member);
-        Long attemptId = subscriptionAttemptCommandPort.persist(attempt);
-        return new PersistedAttempt(memberId, attemptId);
-    }
-
-    /**
-     * 사가 결과 적용. Member 상태와 Attempt 상태를 같은 트랜잭션으로 저장.
-     * - 호출자가 commit / rollback / fail 후 도메인 객체 상태를 갱신해 두어야 한다.
-     * - Member 상태가 변하지 않은 경우(rollback / fail)에도 멤버 영속화를 호출하면
-     *   adapter 가 변화 없음을 감지해 update 하지 않거나 동일 row 로 merge 한다.
-     */
-    @Transactional
-    public void applyResult(Member member, SubscriptionAttempt attempt) {
+    public SubscriptionAttempt saveWithMemberUpdate(Member member, SubscriptionAttempt attempt) {
         memberCommandPort.persist(member);
-        subscriptionAttemptCommandPort.persist(attempt);
+        Long savedId = subscriptionAttemptCommandPort.persist(attempt);
+        return attempt.withId(AttemptId.of(savedId));
     }
 
-    public record PersistedAttempt(Long memberId, Long attemptId) { }
+    @Transactional
+    public SubscriptionAttempt saveAttempt(SubscriptionAttempt attempt) {
+        Long savedId = subscriptionAttemptCommandPort.persist(attempt);
+        return attempt.withId(AttemptId.of(savedId));
+    }
 }

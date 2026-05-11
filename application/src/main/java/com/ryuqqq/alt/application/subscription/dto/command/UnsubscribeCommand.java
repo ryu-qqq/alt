@@ -4,6 +4,10 @@ import com.ryuqqq.alt.domain.channel.ChannelId;
 import com.ryuqqq.alt.domain.member.PhoneNumber;
 import com.ryuqqq.alt.domain.member.SubscriptionStatus;
 
+/**
+ * 해지 요청 Command. 필드는 Domain VO 사용 (APP-DTO-001).
+ * idempotencyKey 는 필수 — Controller @RequestHeader(required=true) 가 보장 (ADR-0004).
+ */
 public record UnsubscribeCommand(
     PhoneNumber phoneNumber,
     ChannelId channelId,

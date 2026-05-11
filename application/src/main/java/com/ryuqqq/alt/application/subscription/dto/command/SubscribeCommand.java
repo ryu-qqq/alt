@@ -6,7 +6,7 @@ import com.ryuqqq.alt.domain.member.SubscriptionStatus;
 
 /**
  * 구독 요청 Command. 필드는 Domain VO 사용 (APP-DTO-001).
- * idempotencyKey 는 nullable — 헤더 누락도 허용 (점진적 도입, ADR-0004).
+ * idempotencyKey 는 필수 — Controller @RequestHeader(required=true) 가 보장 (ADR-0004).
  */
 public record SubscribeCommand(
     PhoneNumber phoneNumber,

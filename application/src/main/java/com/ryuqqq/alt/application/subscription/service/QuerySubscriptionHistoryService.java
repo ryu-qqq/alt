@@ -1,112 +1,62 @@
 package com.ryuqqq.alt.application.subscription.service;
 
-import com.ryuqqq.alt.application.subscription.dto.llm.LlmSummaryOutcome;
-import com.ryuqqq.alt.application.subscription.dto.llm.SubscriptionHistorySummaryRequest;
+import com.ryuqqq.alt.application.subscription.assembler.SubscriptionHistoryAssembler;
+import com.ryuqqq.alt.application.subscription.dto.SubscriptionHistoryReadBundle;
 import com.ryuqqq.alt.application.subscription.dto.query.QuerySubscriptionHistoryQuery;
+import com.ryuqqq.alt.application.subscription.dto.response.LlmSummaryOutcome;
 import com.ryuqqq.alt.application.subscription.dto.response.QuerySubscriptionHistoryResult;
-import com.ryuqqq.alt.application.subscription.dto.response.SubscriptionHistoryItemView;
-import com.ryuqqq.alt.application.subscription.manager.ChannelReadManager;
-import com.ryuqqq.alt.application.subscription.manager.LlmSummaryClientManager;
-import com.ryuqqq.alt.application.subscription.manager.MemberReadManager;
-import com.ryuqqq.alt.application.subscription.manager.SubscriptionAttemptReadManager;
+import com.ryuqqq.alt.application.subscription.facade.HistorySummaryRefreshFacade;
+import com.ryuqqq.alt.application.subscription.facade.SubscriptionHistoryReadFacade;
 import com.ryuqqq.alt.application.subscription.port.in.QuerySubscriptionHistoryUseCase;
-import com.ryuqqq.alt.domain.channel.Channel;
-import com.ryuqqq.alt.domain.channel.ChannelId;
-import com.ryuqqq.alt.domain.member.Member;
-import com.ryuqqq.alt.domain.subscription.SubscriptionAttempt;
-import com.ryuqqq.alt.domain.subscription.SubscriptionHistory;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * 이력 조회 + LLM 자연어 요약. LLM 실패 시 graceful degradation (이력만 반환, summary=null).
+ * 구독 이력 조회 UseCase.
  *
- * 표시되는 이력은 COMMITTED 시도만 포함한다 (운영용 ROLLED_BACK / FAILED 는 사용자 노출 X).
+ * 조회 흐름 (모든 분기가 assembler.toResult 를 단일 출구로 통과):
+ *   1. ReadFacade: Member + Attempts + Channels + 영속 Summary 까지 readOnly 트랜잭션 한 번에 조회
+ *      → Bundle 빌드 시점에 committed/fingerprint 까지 미리 계산
+ *   2. resolveSummary 가 LLM outcome 을 결정한다
+ *      - COMMITTED 0건 → LlmSummaryOutcome.empty() (호출 불필요)
+ *      - 영속 Summary fingerprint 일치 → LlmSummaryOutcome.success(persisted) (LLM 스킵)
+ *      - 없거나 stale → RefreshFacade 가 LLM 호출 + 성공 시 DB persist 까지 묶음 처리
+ *   3. assembler.toResult(bundle, outcome) 로 응답 조립 일원화
+ *
+ * 정책:
+ * - 같은 이력 상태에 대한 중복 LLM 호출 회피 (비용/지연)
+ * - LLM Unavailable 응답은 summary=null 로 graceful degradation, 저장 X (다음 호출 재시도)
+ * - DB 가 단일 source-of-truth (별도 캐시 없음)
  */
 @Service
 public class QuerySubscriptionHistoryService implements QuerySubscriptionHistoryUseCase {
 
-    private final MemberReadManager memberReadManager;
-    private final ChannelReadManager channelReadManager;
-    private final SubscriptionAttemptReadManager subscriptionAttemptReadManager;
-    private final LlmSummaryClientManager llmSummaryClientManager;
+    private final SubscriptionHistoryReadFacade subscriptionHistoryReadFacade;
+    private final HistorySummaryRefreshFacade historySummaryRefreshFacade;
+    private final SubscriptionHistoryAssembler assembler;
 
     public QuerySubscriptionHistoryService(
-        MemberReadManager memberReadManager,
-        ChannelReadManager channelReadManager,
-        SubscriptionAttemptReadManager subscriptionAttemptReadManager,
-        LlmSummaryClientManager llmSummaryClientManager
+        SubscriptionHistoryReadFacade subscriptionHistoryReadFacade,
+        HistorySummaryRefreshFacade historySummaryRefreshFacade,
+        SubscriptionHistoryAssembler assembler
     ) {
-        this.memberReadManager = memberReadManager;
-        this.channelReadManager = channelReadManager;
-        this.subscriptionAttemptReadManager = subscriptionAttemptReadManager;
-        this.llmSummaryClientManager = llmSummaryClientManager;
+        this.subscriptionHistoryReadFacade = subscriptionHistoryReadFacade;
+        this.historySummaryRefreshFacade = historySummaryRefreshFacade;
+        this.assembler = assembler;
     }
 
     @Override
     public QuerySubscriptionHistoryResult execute(QuerySubscriptionHistoryQuery query) {
-        Member member = memberReadManager.getByPhoneNumber(query.phoneNumber());
-        SubscriptionHistory history = subscriptionAttemptReadManager.findHistoryByMemberId(member.id());
-
-        List<SubscriptionAttempt> committed = history.attempts().stream()
-            .filter(SubscriptionAttempt::isCommitted)
-            .toList();
-
-        Map<Long, Channel> channels = resolveChannels(committed);
-
-        List<SubscriptionHistoryItemView> items = committed.stream()
-            .map(a -> toItemView(a, channels.get(a.channelId().value())))
-            .toList();
-
-        if (items.isEmpty()) {
-            return QuerySubscriptionHistoryResult.withoutSummary(items);
-        }
-
-        SubscriptionHistorySummaryRequest llmRequest = new SubscriptionHistorySummaryRequest(
-            member.phoneNumber().value(),
-            items.stream()
-                .map(i -> new SubscriptionHistorySummaryRequest.HistoryItem(
-                    i.channelName(),
-                    i.fromStatus().displayName(),
-                    i.toStatus().displayName(),
-                    i.kind().displayName(),
-                    i.occurredAt()
-                ))
-                .toList()
-        );
-
-        LlmSummaryOutcome outcome = llmSummaryClientManager.summarize(llmRequest);
-        return switch (outcome) {
-            case LlmSummaryOutcome.Success success ->
-                QuerySubscriptionHistoryResult.of(items, success.summary());
-            case LlmSummaryOutcome.Unavailable ignored ->
-                QuerySubscriptionHistoryResult.withoutSummary(items);
-        };
+        SubscriptionHistoryReadBundle bundle = subscriptionHistoryReadFacade.findByPhoneNumber(query.phoneNumber());
+        return assembler.toResult(bundle, resolveSummary(bundle));
     }
 
-    private Map<Long, Channel> resolveChannels(List<SubscriptionAttempt> attempts) {
-        Map<Long, Channel> channels = new HashMap<>();
-        for (SubscriptionAttempt attempt : attempts) {
-            Long key = attempt.channelId().value();
-            if (!channels.containsKey(key)) {
-                channels.put(key, channelReadManager.getById(ChannelId.of(key)));
-            }
+    private LlmSummaryOutcome resolveSummary(SubscriptionHistoryReadBundle bundle) {
+        if (!bundle.hasCommitted()) {
+            return LlmSummaryOutcome.empty();
         }
-        return channels;
-    }
-
-    private SubscriptionHistoryItemView toItemView(SubscriptionAttempt attempt, Channel channel) {
-        return new SubscriptionHistoryItemView(
-            attempt.id().value(),
-            channel.idValue(),
-            channel.name(),
-            attempt.kind(),
-            attempt.fromStatus(),
-            attempt.toStatus(),
-            attempt.completedAt()
-        );
+        if (bundle.hasMatchingSummary()) {
+            return LlmSummaryOutcome.success(bundle.persistedSummary().summary());
+        }
+        return historySummaryRefreshFacade.refresh(bundle);
     }
 }
