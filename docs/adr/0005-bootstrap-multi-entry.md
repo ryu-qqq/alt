@@ -7,7 +7,7 @@
 운영 시점에 다음 진입점들이 필요해질 가능성이 높다:
 
 - **API**: 동기 REST 트래픽 처리. ALB 뒤. 트래픽에 따라 빠른 스케일 인/아웃.
-- **Scheduler**: 주기 잡 — 예: PENDING 좀비 attempt 정리, LLM 요약 캐시 무효화. 단일 인스턴스 충분, ALB 불필요.
+- **Scheduler**: 주기 잡 — 예: PENDING 좀비 attempt 정리, 오래된 history_summary 정리. 단일 인스턴스 충분, ALB 불필요.
 - **Worker**: 비동기 작업 — 예: SQS/Kafka 컨슈머로 LLM 요약 백그라운드 생성. 트래픽 패턴이 API와 다름.
 
 세 진입점 모두 같은 `domain` / `application` / 일부 `adapter-out`을 공유하지만:

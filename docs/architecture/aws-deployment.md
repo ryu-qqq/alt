@@ -237,7 +237,7 @@ Auto Scaling:
 |---|---|
 | PENDING 좀비 attempt (앱이 csrng 응답 받기 전 다운) | bootstrap-scheduler에 정리 잡 — 5분 이상 PENDING → FAILED 전환 |
 | csrng 영구 장애 | CB OPEN 알람 + 사용자 안내 페이지 |
-| LLM API 비용 폭증 | History summary 캐시 hit rate 모니터링, daily 호출 quota 알람 |
+| LLM API 비용 폭증 | history_summary fingerprint hit rate (LLM 스킵률) 모니터링, daily 호출 quota 알람 |
 | RDS 페일오버 시 단기 connection 끊김 | HikariCP `connection-test-query`, retry-on-failure 설정 |
 | 로그 PII 노출 (휴대폰번호) | Logback 마스킹 필터 (예: `010-****-1234`) — 향후 작업 |
 

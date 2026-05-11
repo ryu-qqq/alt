@@ -52,7 +52,7 @@
 | S-08 | P0 | Idempotency | 다른 Idempotency-Key → 둘 다 정상 처리 |
 | S-09 | P1 | History + LLM | 이력 0건 → summary=null + LLM 호출 0회 |
 | S-10 | P1 | History + LLM | 이력 N건 첫 조회 → LLM 호출 1회 + history_summary 영속 |
-| S-11 | P1 | History + LLM | 같은 상태 재조회 → LLM 호출 0회 (캐시 hit) |
+| S-11 | P1 | History + LLM | 같은 상태 재조회 → LLM 호출 0회 (영속 Summary fingerprint 일치) |
 | S-12 | P1 | History + LLM | 새 COMMITTED 후 재조회 → LLM 재호출 1회 (fingerprint 변경) |
 | S-13 | P1 | History + LLM | LLM unavailable → summary=null + history_summary 미저장 |
 | S-14 | P1 | Validation | 휴대폰 형식 오류 → 400 + code=INVALID_PHONE_NUMBER |
@@ -164,7 +164,7 @@
   - `LlmSummaryClient.summarize` 호출 1회
   - DB `history_summary` 1건 영속 (`member_id`, `fingerprint == 최신 COMMITTED attempt_id`, `summary` 일치)
 
-### S-11: 같은 상태 재조회 (캐시 hit)
+### S-11: 같은 상태 재조회 (fingerprint 일치 → LLM 스킵)
 
 - **사전조건**: S-10 후 (history_summary 영속됨).
 - **stub**: `LlmSummaryClient.summarize` (호출되지 않을 거지만 stub 설정 — `success("fresh")` — 실제 호출 시 검출되도록)

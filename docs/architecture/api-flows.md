@@ -123,8 +123,8 @@ GET /api/v1/subscriptions/history?phoneNumber=01012345678
    └─ [Facade] HistorySummaryRefreshFacade
          │
          ├─ HistorySummaryQueryPort.findByMemberId
-         │     ├─ 캐시 hit + 최신 이력 기반 → 그대로 반환
-         │     └─ 캐시 miss / stale → LLM 호출
+         │     ├─ 영속 Summary 의 fingerprint == 현재 이력 fingerprint → DB 값 그대로 반환 (LLM 호출 X)
+         │     └─ 없거나 fingerprint 불일치(stale) → LLM 호출
          │
          ├─ [LLM 호출] LlmSummaryClient.summarize(history)
          │     ├─ 성공 → HistorySummaryCommandPort.save(summary) + 응답에 포함

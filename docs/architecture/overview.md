@@ -57,7 +57,7 @@ bootstrap → adapter-{in,out} → application → domain
 | **Member** | 휴대폰번호 + 현재 구독 상태(SubscriptionStatus). 도메인 정책으로 전이 검증. |
 | **Channel** | 채널 타입(BOTH / SUBSCRIBE_ONLY / UNSUBSCRIBE_ONLY). `canSubscribe()` / `canUnsubscribe()`를 직접 노출. |
 | **SubscriptionAttempt** | 사가 상태 머신. 한 시도 = 한 row. PENDING → 종착 상태(COMMITTED / ROLLED_BACK / FAILED) 전이는 도메인 메서드로만. |
-| **HistorySummary** | 회원 단위 LLM 요약 캐시 (status, summary, generatedAt). |
+| **HistorySummary** | 회원 단위 LLM 요약 영속체 — DB 가 단일 source-of-truth. fingerprint 가 현재 이력과 일치하면 LLM 호출 스킵 (불일치/stale 시에만 재생성). |
 
 ### 상태 전이
 
