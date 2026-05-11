@@ -1,9 +1,5 @@
 # ADR-0004. 멱등성 전략 (Idempotency-Key 필수 + Caffeine 게이트 + DB UNIQUE)
 
-- Status: Accepted
-- Date: 2026-05-09
-- Revised: 2026-05-11
-
 ## Context
 
 ARTINUS 과제 명세는 멱등성을 명시적으로 요구하지 않는다. 그러나 다음 요인들이 멱등성을 사실상 필수로 만든다:

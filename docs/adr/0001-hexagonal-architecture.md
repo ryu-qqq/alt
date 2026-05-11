@@ -1,8 +1,5 @@
 # ADR-0001. 헥사고날 아키텍처 + Gradle 멀티모듈 채택
 
-- Status: Accepted
-- Date: 2026-05-08
-
 ## Context
 
 ARTINUS 백엔드 과제는 5개 평가 항목을 동시에 검증한다 — 아키텍처/요구사항/API/외부 API 장애 대응/클라우드 인프라.

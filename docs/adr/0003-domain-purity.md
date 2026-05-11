@@ -1,8 +1,5 @@
 # ADR-0003. domain 모듈 순수성 강제 (Spring/JPA 의존성 금지)
 
-- Status: Accepted
-- Date: 2026-05-08
-
 ## Context
 
 [ADR-0001](0001-hexagonal-architecture.md)에서 헥사고날을 채택했지만, 헥사고날만으로는 도메인 순수성이 보장되지 않는다. 시간이 지나면 편의를 위해 도메인에 다음과 같은 외부 의존이 흘러들어온다:

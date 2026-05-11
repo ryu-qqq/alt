@@ -1,8 +1,5 @@
 # ADR-0005. bootstrap을 진입점별 sub-module로 분리
 
-- Status: Accepted
-- Date: 2026-05-11
-
 ## Context
 
 [ADR-0001](0001-hexagonal-architecture.md)에서 헥사고날 + Gradle 멀티모듈을 채택했다. 그때는 `bootstrap` 단일 모듈이었다.

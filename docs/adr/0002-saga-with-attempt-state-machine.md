@@ -1,8 +1,5 @@
 # ADR-0002. csrng 트랜잭션을 Saga + Attempt 상태 머신으로 처리
 
-- Status: Accepted
-- Date: 2026-05-08
-
 ## Context
 
 요구사항(과제 명세):
