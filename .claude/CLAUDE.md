@@ -17,7 +17,7 @@ ARTINUS Backend Engineer 과제 — 구독 서비스 백엔드 API.
 | Database | MySQL 8 + Flyway (Testcontainers 통합 테스트) |
 | Cache / Lock | Redis (Redisson — 이력 요약 캐시, 분산 락) |
 | 회복탄력성 | Resilience4j (CircuitBreaker + Retry + TimeLimiter) |
-| LLM | RestClient + Anthropic Claude (Spring AI 미사용 — Port 추상화로 충분) |
+| LLM | RestClient + OpenAI gpt-4o-mini (Spring AI 미사용 — Port 추상화로 충분) |
 | Test | JUnit 5 + AssertJ + Testcontainers + ArchUnit |
 
 ---
@@ -38,7 +38,7 @@ alt/
 │   ├── persistence-mysql/               # JPA Entity(*Entity), Mapper, Adapter, Flyway
 │   ├── persistence-redis/               # 이력 요약 캐시
 │   ├── client-csrng/                    # RestClient + Resilience4j
-│   └── client-llm/                      # RestClient + Anthropic
+│   └── client-llm/                      # RestClient + OpenAI
 └── bootstrap/                           # @SpringBootApplication
 ```
 
@@ -51,17 +51,12 @@ alt/
 
 ---
 
-## 컨벤션 문서 (필수 참조)
+## 참조 문서
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| 도메인 컨벤션 | `docs/conventions/convention-01-domain.md` | Aggregate, VO, Enum, ErrorCode, Exception |
-| Application 컨벤션 | `docs/conventions/convention-02-application.md` | UseCase, Port, Manager, Factory, Facade |
-| Persistence 컨벤션 | `docs/conventions/convention-03-persistence.md` | JPA Entity, Mapper, Adapter |
-| API 컨벤션 | `docs/conventions/convention-04-api.md` | Controller, DTO, Swagger, 공통 응답 |
-| ADR | `docs/adr/` | 0001 헥사고날, 0002 사가, 0003 도메인 순수성 |
-
-> **코드 작성 전에 반드시 해당 레이어의 컨벤션 문서를 읽어야 한다.**
+| ADR | `docs/adr/` | 0001 헥사고날, 0002 사가, 0003 도메인 순수성, 0004 멱등성 |
+| 아키텍처 | `docs/architecture/` | 시스템 개요, API 데이터 흐름, AWS 배포 설계 |
 
 ---
 
