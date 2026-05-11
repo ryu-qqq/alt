@@ -1,0 +1,35 @@
+# 빌드 산출물
+**/build/
+**/.gradle/
+.gradle/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# 문서/메타 — 이미지에 불필요
+docs/
+README.md
+*.md
+
+# Claude / 에이전트 메타
+.claude/
+.dockerignore
+Dockerfile
+
+# 환경/시크릿 (실수 방지)
+.env
+.env.*
+*.key
+*.pem

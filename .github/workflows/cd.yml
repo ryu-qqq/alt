@@ -1,0 +1,79 @@
+# bootstrap-api 진입점 CD
+#
+# 트리거: CI 워크플로가 main에서 success로 끝났을 때만.
+# 인증: AWS OIDC — 장기 자격증명 저장 X (docs/architecture/cicd.md 참고).
+# 배포: ECR push → ECS Rolling Update → services-stable 대기.
+#
+# 운영 단계 진화:
+#  - 진입점 늘면 cd-scheduler.yml / cd-worker.yml 분리
+#  - 자동 롤백 필요 시 CodeDeploy ECS deployment type 도입
+
+name: CD (bootstrap-api)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+
+concurrency:
+  group: cd-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, Push, Deploy
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          IMAGE_SHA="$REGISTRY/$REPOSITORY:${GITHUB_SHA::7}"
+          IMAGE_LATEST="$REGISTRY/$REPOSITORY:latest"
+
+          docker build -t "$IMAGE_SHA" -t "$IMAGE_LATEST" .
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+          echo "Pushed: $IMAGE_SHA"
+
+      - name: Deploy to ECS (Rolling Update)
+        run: |
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --service "${{ vars.ECS_SERVICE }}" \
+            --force-new-deployment \
+            --no-cli-pager
+
+      - name: Wait for service stable
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --services "${{ vars.ECS_SERVICE }}"
+
+      - name: Notify result
+        if: always()
+        run: |
+          echo "Deployment finished — status=${{ job.status }}, sha=${GITHUB_SHA::7}"

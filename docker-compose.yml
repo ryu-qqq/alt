@@ -1,0 +1,82 @@
+# alt — 평가용 실행 환경
+#
+# 한 번에 띄우기: docker compose up --build
+#   - mysql:8.0 (healthcheck) → 준비된 후 app 기동
+#   - app: bootstrap-api (Spring Boot) 8080 포트
+#   - 시드 SQL: docker/db-seed/V99999__demo_seed.sql
+#     → Flyway 가 db/migration + filesystem:/seed 두 location 을 합쳐 순서대로 실행
+#     → 데모 회원(010-1234-5678) 의 구독 이력 5건 자동 생성
+#
+# LLM 요약 검증 (선택):
+#   OPENAI_API_KEY=sk-... docker compose up --build
+#   → 미설정 시 NoOpLlmClient 가 동작, summary 는 null 로 graceful degradation
+#
+# 재기동 시 깔끔하게:
+#   docker compose down -v   # 볼륨까지 삭제 → 시드 재실행
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: alt-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: alt
+      MYSQL_USER: alt
+      MYSQL_PASSWORD: alt
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - alt-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "alt", "-palt"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alt-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      TZ: Asia/Seoul
+
+      # DB
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: alt
+      DB_USER: alt
+      DB_PASSWORD: alt
+
+      # 시드 location 추가 — docker-compose 환경 한정.
+      # 운영 빌드 jar 에는 시드가 포함되지 않으며 (filesystem 마운트로만 주입),
+      # 운영 배포 시 이 환경변수도 주지 않으므로 자동으로 비활성.
+      SPRING_FLYWAY_LOCATIONS: "classpath:db/migration,filesystem:/seed"
+
+      # LLM 키 (옵셔널). 호스트의 OPENAI_API_KEY 를 그대로 통과.
+      # 미설정 시 NoOpLlmClient 활성 — summary 는 null 반환.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+      # JVM
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/db-seed:/seed:ro
+
+volumes:
+  alt-mysql-data:
+    name: alt-mysql-data
