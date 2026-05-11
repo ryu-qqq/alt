@@ -12,14 +12,19 @@ mysql = "8.4.0"
 flyway = "10.10.0"
 h2 = "2.2.224"
 
-# Redis
-redisson = "3.27.2"
+# Local Cache
+caffeine = "3.1.8"
 
 # Testing
 junit = "5.10.2"
 assertj = "3.25.3"
 mockito = "5.11.0"
-testcontainers = "2.0.3"
+# Testcontainers 1.21.4 — 1.x 라인 최신 안정. "Makes version 1.21.x works with recent Docker Engine changes"
+# (이전 카탈로그의 "2.0.3" 은 잘못된 값. Testcontainers 2.x 는 아직 안정으로 채택하지 않음)
+testcontainers = "1.21.4"
+# docker-java 3.7.0+ 부터 기본 Docker API version 이 1.44 — Docker Desktop 29.x (API 1.44+) 호환.
+# Spring Boot 3.5.6 BOM 이 가져오는 3.4.x (API 1.32) 를 override 한다.
+dockerJava = "3.7.1"
 archunit = "1.2.1"
 
 # API Documentation
@@ -37,9 +42,9 @@ jackson = "2.17.0"
 [libraries]
 # Spring Boot
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
-spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 
@@ -58,8 +63,8 @@ flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 flyway-mysql = { module = "org.flywaydb:flyway-mysql", version.ref = "flyway" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
-# Redis
-redisson-spring-boot-starter = { module = "org.redisson:redisson-spring-boot-starter", version.ref = "redisson" }
+# Local Cache
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 
 # Testing
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -75,9 +80,9 @@ testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
 testcontainers-mysql = { module = "org.testcontainers:mysql" }
 
-# Testcontainers (non-BOM managed)
-testcontainers-redis = { module = "com.redis:testcontainers-redis", version = "2.2.4" }
-
+# docker-java (Testcontainers transitive — Docker API 1.44+ 강제 사용 목적으로 명시)
+docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
+docker-java-transport-zerodep = { module = "com.github.docker-java:docker-java-transport-zerodep", version.ref = "dockerJava" }
 
 # API Documentation
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
