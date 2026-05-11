@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: alt
+  profiles:
+    active: local
+  config:
+    import:
+      - classpath:web.yml
+      - classpath:persistence.yml
+      - classpath:cache-caffeine.yml
+      - classpath:csrng-client.yml
+      - classpath:llm-client.yml
+
+logging:
+  level:
+    root: INFO
+    com.ryuqqq.alt: DEBUG

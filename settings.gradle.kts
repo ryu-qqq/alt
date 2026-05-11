@@ -9,13 +9,14 @@ include(
     "application",
     "adapter-in",
     "adapter-out:persistence-mysql",
-    "adapter-out:persistence-redis",
+    "adapter-out:cache-caffeine",
     "adapter-out:client-csrng",
     "adapter-out:client-llm",
-    "bootstrap",
+    "bootstrap:bootstrap-api",
 )
 
 project(":adapter-out:persistence-mysql").projectDir = file("adapter-out/persistence-mysql")
-project(":adapter-out:persistence-redis").projectDir = file("adapter-out/persistence-redis")
+project(":adapter-out:cache-caffeine").projectDir = file("adapter-out/cache-caffeine")
 project(":adapter-out:client-csrng").projectDir = file("adapter-out/client-csrng")
 project(":adapter-out:client-llm").projectDir = file("adapter-out/client-llm")
+project(":bootstrap:bootstrap-api").projectDir = file("bootstrap/bootstrap-api")

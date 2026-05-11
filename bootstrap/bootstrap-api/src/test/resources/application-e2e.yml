@@ -1,0 +1,49 @@
+# E2E 테스트 프로파일.
+#
+# - 외부 RestClient 호출은 Port 단(`RandomClient`, `LlmSummaryClient`) 에서 MockitoBean 으로 교체.
+# - llm-client.api-key 는 빈 값 유지 → LlmClientAdapter 미등록, NoOpLlmClient 도 MockitoBean 으로 덮어쓰임.
+# - csrng base-url 은 어차피 호출되지 않으므로 placeholder.
+# - DB / Flyway 는 @DynamicPropertySource 로 Testcontainers MySQL URL 주입.
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+# 외부 클라이언트 — 어차피 Mock 으로 교체. base-url 은 더미.
+csrng-client:
+  base-url: http://localhost:1
+  connect-timeout: 500ms
+  read-timeout: 500ms
+
+llm-client:
+  base-url: http://localhost:1
+  api-key: ""
+  model: gpt-4o-mini
+  max-tokens: 100
+  temperature: 0.3
+  connect-timeout: 500ms
+  read-timeout: 500ms
+
+# 멱등성 캐시 — 짧게 (테스트별 invalidateAll 로 격리)
+cache-caffeine:
+  idempotency:
+    ttl: 5m
+    jitter: 0s
+    max-size: 1000
+
+logging:
+  level:
+    root: WARN
+    com.ryuqqq.alt: INFO
+    org.hibernate.SQL: WARN
