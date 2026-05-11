@@ -60,5 +60,5 @@ POST는 `Idempotency-Key: <UUID>` 헤더 필수. 자세한 데이터 흐름은 [
 | 외부 API 장애 대응 | [docs/architecture/resilience.md](docs/architecture/resilience.md) |
 | AWS 배포 설계 | [docs/architecture/aws-deployment.md](docs/architecture/aws-deployment.md) |
 | CI/CD 흐름 | [docs/architecture/cicd.md](docs/architecture/cicd.md) |
-| ADR | [docs/adr/](docs/adr/) — 헥사고날 / Saga / 도메인 순수성 / 멱등성 / bootstrap 다중 진입점 |
+| ADR | [docs/adr/](docs/adr/) — 헥사고날 / Saga / 도메인 순수성 / 멱등성 / bootstrap 다중 진입점 / LLM stale fallback |
 | 과제 원문 | [docs/assignment.md](docs/assignment.md) |

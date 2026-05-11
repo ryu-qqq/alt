@@ -33,6 +33,6 @@ public class SubscriptionHistoryAssembler {
                 attempt.completedAt()
             ))
             .toList();
-        return QuerySubscriptionHistoryResult.of(views, outcome.summary());
+        return QuerySubscriptionHistoryResult.of(views, outcome);
     }
 }

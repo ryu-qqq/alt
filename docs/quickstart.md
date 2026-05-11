@@ -35,7 +35,7 @@ open http://localhost:8080/swagger-ui.html
 curl -s 'http://localhost:8080/api/v1/subscriptions/history?phoneNumber=01012345678' | jq
 ```
 
-**응답 (LLM 키 없음 / quota 부족 시)**:
+**응답 (LLM 키 없음 / quota 부족 + 영속체 폴백 없음 시)**:
 ```json
 {
   "data": {
@@ -45,12 +45,30 @@ curl -s 'http://localhost:8080/api/v1/subscriptions/history?phoneNumber=01012345
       { "attemptId": 2, "channelId": 2, "channelName": "모바일앱", "kind": "SUBSCRIBE",   "fromStatus": "BASIC",   "toStatus": "PREMIUM", "occurredAt": "2026-02-01T10:30:01Z" },
       { "attemptId": 1, "channelId": 1, "channelName": "홈페이지", "kind": "SUBSCRIBE",   "fromStatus": "NONE",    "toStatus": "BASIC",   "occurredAt": "2026-01-01T09:00:01Z" }
     ],
-    "summary": null
+    "summary": null,
+    "summaryGeneratedAt": null,
+    "summaryStale": false
   }
 }
 ```
 
-> LLM 키가 정상이면 `summary` 에 자연어 요약이 들어간다. 키 미설정/quota 부족/외부 오류는 모두 `summary: null` 로 graceful degradation — 이력 자체는 항상 정상 반환.
+**LLM 호출 성공 (fresh)**:
+```json
+"summary": "2026년 1월 1일 홈페이지로 일반 구독을 시작해 ...",
+"summaryGeneratedAt": "2026-05-11T12:30:01Z",
+"summaryStale": false
+```
+
+**이력 변경됐는데 LLM 재호출 실패 → 영속체 폴백 (stale)**:
+```json
+"summary": "2026년 1월 1일 ... (옛 이력 기반 요약)",
+"summaryGeneratedAt": "2026-04-01T10:00:00Z",
+"summaryStale": true
+```
+
+> 정책 — 응답 우선순위 fresh > stale fallback > null.
+> 클라이언트는 `summaryStale=true` 일 때 "최근 요약이 아닐 수 있음" 안내 가능.
+> 자세한 근거는 [ADR-0006](adr/0006-llm-summary-stale-fallback.md).
 
 ---
 

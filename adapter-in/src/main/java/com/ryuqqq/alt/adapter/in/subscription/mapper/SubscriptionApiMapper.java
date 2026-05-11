@@ -71,7 +71,9 @@ public final class SubscriptionApiMapper {
             result.history().stream()
                 .map(SubscriptionApiMapper::toHistoryItemView)
                 .toList(),
-            result.summary()
+            result.summary(),
+            result.summaryGeneratedAt(),
+            result.summaryStale()
         );
     }
 

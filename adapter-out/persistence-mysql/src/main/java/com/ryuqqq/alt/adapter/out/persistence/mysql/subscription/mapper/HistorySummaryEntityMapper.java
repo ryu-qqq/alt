@@ -17,10 +17,11 @@ public class HistorySummaryEntityMapper {
     }
 
     public HistorySummary toDomain(HistorySummaryJpaEntity entity) {
-        return HistorySummary.of(
+        return HistorySummary.rehydrate(
             MemberId.of(entity.getMemberId()),
             entity.getFingerprint(),
-            entity.getSummary()
+            entity.getSummary(),
+            entity.updatedAt()
         );
     }
 }

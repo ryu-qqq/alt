@@ -11,6 +11,7 @@ import com.ryuqqq.alt.adapter.out.client.llm.mapper.ChatCompletionMapper;
 import com.ryuqqq.alt.application.subscription.dto.SubscriptionHistoryReadBundle;
 import com.ryuqqq.alt.application.subscription.dto.response.LlmSummaryOutcome;
 import com.ryuqqq.alt.application.subscription.port.out.LlmSummaryClient;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -56,9 +57,9 @@ public class LlmClientAdapter implements LlmSummaryClient {
         try {
             ChatCompletionRequest request = mapper.toRequest(bundle);
             ChatCompletionResponse response = llmApiExecutor.execute(() -> doCall(request));
-            return LlmSummaryOutcome.success(mapper.resolveSummary(mapper.parsePayload(response)));
+            return LlmSummaryOutcome.success(mapper.resolveSummary(mapper.parsePayload(response)), Instant.now());
         } catch (Exception e) {
-            log.warn("llm summary unavailable: {}", e.getMessage());
+            log.warn("llm summary unavailable", e);
             return LlmSummaryOutcome.unavailable(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
