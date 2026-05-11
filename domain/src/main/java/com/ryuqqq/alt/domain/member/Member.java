@@ -34,6 +34,14 @@ public final class Member {
         return new Member(id, phoneNumber, status);
     }
 
+    /**
+     * 영속화 직후 DB 가 채번한 ID 를 부여하는 용도.
+     * 기존 필드(phoneNumber, status)는 보존하고 ID 만 갈아끼운 새 인스턴스를 반환한다.
+     */
+    public Member withId(MemberId id) {
+        return new Member(id, this.phoneNumber, this.status);
+    }
+
     public boolean canSubscribeTo(SubscriptionStatus target) {
         return status.canSubscribeTo(target);
     }
@@ -82,5 +90,15 @@ public final class Member {
     @Override
     public int hashCode() {
         return Objects.hashCode(id);
+    }
+
+    /**
+     * 식별자 + 상태만 노출. 휴대폰 번호(PII)는 의도적으로 제외.
+     */
+    @Override
+    public String toString() {
+        return "Member{id=" + (id.isNew() ? "new" : id.value())
+            + ", status=" + status.displayName()
+            + "}";
     }
 }

@@ -18,8 +18,7 @@ public final class SubscriptionTransitionPolicy {
 
     public static void verifySubscribe(Member member, Channel channel, SubscriptionStatus target) {
         if (!channel.canSubscribe()) {
-            throw new ChannelSubscribeNotAllowedException(
-                "channelId=" + channel.idValue() + " type=" + channel.typeDisplayName());
+            throw new ChannelSubscribeNotAllowedException(channel.toString());
         }
         if (!member.canSubscribeTo(target)) {
             throw new InvalidSubscribeTransitionException(
@@ -29,8 +28,7 @@ public final class SubscriptionTransitionPolicy {
 
     public static void verifyUnsubscribe(Member member, Channel channel, SubscriptionStatus target) {
         if (!channel.canUnsubscribe()) {
-            throw new ChannelUnsubscribeNotAllowedException(
-                "channelId=" + channel.idValue() + " type=" + channel.typeDisplayName());
+            throw new ChannelUnsubscribeNotAllowedException(channel.toString());
         }
         if (!member.canUnsubscribeTo(target)) {
             throw new InvalidUnsubscribeTransitionException(

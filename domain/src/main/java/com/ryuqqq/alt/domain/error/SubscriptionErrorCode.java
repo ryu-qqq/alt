@@ -19,9 +19,6 @@ public enum SubscriptionErrorCode implements ErrorCode {
     INVALID_SUBSCRIBE_TRANSITION("SUB-001", "허용되지 않는 구독 상태 전이입니다", ErrorCategory.FORBIDDEN),
     INVALID_UNSUBSCRIBE_TRANSITION("SUB-002", "허용되지 않는 해지 상태 전이입니다", ErrorCategory.FORBIDDEN),
 
-    // Attempt state machine
-    ATTEMPT_NOT_PENDING("SUB-101", "이미 종료된 시도는 변경할 수 없습니다", ErrorCategory.CONFLICT),
-
     // Idempotency
     IDEMPOTENCY_CONFLICT("SUB-201", "동일 멱등성 키로 이미 처리된 요청입니다", ErrorCategory.CONFLICT);
 

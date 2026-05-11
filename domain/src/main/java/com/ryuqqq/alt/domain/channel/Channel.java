@@ -69,4 +69,12 @@ public final class Channel {
     public int hashCode() {
         return Objects.hashCode(id);
     }
+
+    @Override
+    public String toString() {
+        return "Channel{id=" + (id.isNew() ? "new" : id.value())
+            + ", name=" + name
+            + ", type=" + type.displayName()
+            + "}";
+    }
 }

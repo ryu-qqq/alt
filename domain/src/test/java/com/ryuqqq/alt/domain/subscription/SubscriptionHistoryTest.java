@@ -21,10 +21,10 @@ class SubscriptionHistoryTest {
     private static final ChannelId CHANNEL = ChannelId.of(10L);
 
     private SubscriptionAttempt anyAttempt(Instant requestedAt) {
-        return SubscriptionAttempt.forNew(
+        return SubscriptionAttempt.committed(
             MEMBER, CHANNEL, AttemptKind.SUBSCRIBE,
             SubscriptionStatus.NONE, SubscriptionStatus.PREMIUM,
-            requestedAt, null
+            requestedAt, requestedAt.plusSeconds(1), null
         );
     }
 
